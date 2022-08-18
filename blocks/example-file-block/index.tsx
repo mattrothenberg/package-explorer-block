@@ -5,6 +5,7 @@ import { AvatarStack, Avatar, Label as PrimerLabel } from "@primer/react";
 import compareVersions from "compare-versions";
 import { matchSorter } from "match-sorter";
 import Highlighter from "react-highlight-words";
+import stubYarnLock from "./stublock.json";
 
 import { tw } from "twind";
 import { styled } from "@stitches/react";
@@ -38,6 +39,9 @@ const PackageDetail = ({
   name: string;
   version: string;
 }) => {
+  // @ts-ignore
+  const lockFileEntry = stubYarnLock[`${name}@${version}`];
+
   const { data, error } = useSWR<PackageDetailResponse>(
     `https://api.npms.io/v2/package/${encodeURIComponent(name)}`,
     fetcher
@@ -60,30 +64,49 @@ const PackageDetail = ({
     );
   }
 
-  let versionDiff = compareVersions(data.collected.metadata.version, version);
+  let versionDiff = compareVersions(
+    data.collected.metadata.version,
+    lockFileEntry?.version
+  );
 
   return (
     <div className={tw`grid grid-cols-12 gap-4`}>
-      <div className={tw`col-span-4`}>
-        <Label>Latest Version</Label>
-        <div className={tw`mt-2 flex items-center space-x-2`}>
-          <p className={tw`text-base font-mono`}>
-            {data.collected.metadata.version}
-          </p>
-          <>
-            {versionDiff === 1 && (
-              <PrimerLabel variant="success">Update available</PrimerLabel>
-            )}
-            {versionDiff === -1 && (
-              <PrimerLabel variant="danger">Older</PrimerLabel>
-            )}
-            {versionDiff === 0 && (
-              <PrimerLabel variant="secondary">Same Version</PrimerLabel>
-            )}
-          </>
+      <div className={tw`col-span-12 flex`}>
+        <div className={tw`flex items-center space-x-6`}>
+          <div>
+            <Label>Latest Version</Label>
+            <div className={tw`mt-2 flex items-center space-x-2`}>
+              <p className={tw`text-base font-mono`}>
+                {data.collected.metadata.version}
+              </p>
+            </div>
+          </div>
+          {lockFileEntry && (
+            <div>
+              <Label>Resolved Version</Label>
+              <div className={tw`mt-2 flex items-center space-x-2`}>
+                <p className={tw`text-base font-mono`}>
+                  {lockFileEntry.version}
+                </p>
+                <>
+                  {versionDiff === 1 && (
+                    <PrimerLabel variant="success">
+                      Update available
+                    </PrimerLabel>
+                  )}
+                  {versionDiff === 0 && (
+                    <PrimerLabel variant="secondary">
+                      Latest Version
+                    </PrimerLabel>
+                  )}
+                </>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-      <div className={tw`col-span-4`}>
+
+      <div className={tw`col-span-3`}>
         <Label>Downloads</Label>
         <div className={tw`mt-2`}>
           <p className={tw`text-base font-mono`}>
@@ -91,7 +114,7 @@ const PackageDetail = ({
           </p>
         </div>
       </div>
-      <div className={tw`col-span-4`}>
+      <div className={tw`col-span-5`}>
         <Label>Maintainers</Label>
         <div className={tw`mt-2 overflow-auto`}>
           <AvatarStack>
@@ -100,6 +123,7 @@ const PackageDetail = ({
               .map((maintainer) => {
                 return (
                   <Avatar
+                    key={maintainer.username}
                     alt={maintainer.email}
                     src={`https://github.com/${maintainer.username}.png`}
                   ></Avatar>
@@ -108,7 +132,7 @@ const PackageDetail = ({
           </AvatarStack>
         </div>
       </div>
-      <div className={tw`col-span-12`}>
+      <div className={tw`col-span-3`}>
         <Label>Links</Label>
         <div className={tw`mt-1`}>
           <ul className={tw`overflow-ellipsis truncate`}>
@@ -196,10 +220,10 @@ function PackageList({
             key={pkgName}
             value={pkgName}
           >
-            {/* @ts-ignore */}
             <PackageItem
               search={search}
               name={pkgName}
+              // @ts-ignore
               version={dependencies[pkgName]}
             />
           </Accordion.Item>
