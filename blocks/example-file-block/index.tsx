@@ -3,6 +3,8 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import useSWR from "swr";
 import { AvatarStack, Avatar, Label as PrimerLabel } from "@primer/react";
 import compareVersions from "compare-versions";
+import { matchSorter } from "match-sorter";
+import Highlighter from "react-highlight-words";
 
 import { tw } from "twind";
 import { styled } from "@stitches/react";
@@ -11,7 +13,7 @@ import * as Accordion from "@radix-ui/react-accordion";
 import "./index.css";
 import axios from "axios";
 import { PackageDetailResponse } from "./types";
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 const fetcher = (url: string) => axios.get(url).then((res) => res.data);
 
@@ -135,7 +137,15 @@ const PackageDetail = ({
   );
 };
 
-function PackageItem({ name, version }: { name: string; version: string }) {
+function PackageItem({
+  name,
+  version,
+  search,
+}: {
+  name: string;
+  version: string;
+  search: string;
+}) {
   const [animationParent] = useAutoAnimate<HTMLDivElement>();
   return (
     <>
@@ -143,7 +153,13 @@ function PackageItem({ name, version }: { name: string; version: string }) {
         <div className={tw`flex items-center justify-between w-full`}>
           <div className={tw`flex items-center space-x-1`}>
             <AccordionChevron />
-            <span className={tw`font-mono text-sm text-gray-900`}>{name}</span>
+            <span className={tw`font-mono text-sm text-gray-900`}>
+              <Highlighter
+                highlightClassName={tw`bg-yellow-100 text-yellow-900`}
+                searchWords={[search]}
+                textToHighlight={name}
+              ></Highlighter>
+            </span>
           </div>
           <span className={tw`font-mono text-sm text-gray-600`}>{version}</span>
         </div>
@@ -157,31 +173,100 @@ function PackageItem({ name, version }: { name: string; version: string }) {
   );
 }
 
+function PackageList({
+  dependencies,
+  packages,
+  search,
+}: {
+  dependencies: object;
+  packages: string[];
+  search: string;
+}) {
+  const [animationParent] = useAutoAnimate<HTMLDivElement>();
+  return (
+    <Accordion.Root
+      ref={animationParent}
+      className={tw`divide-y`}
+      type="multiple"
+    >
+      {packages.map((pkgName) => {
+        return (
+          <Accordion.Item
+            className={tw`py-2 first:pt-0`}
+            key={pkgName}
+            value={pkgName}
+          >
+            {/* @ts-ignore */}
+            <PackageItem
+              search={search}
+              name={pkgName}
+              version={dependencies[pkgName]}
+            />
+          </Accordion.Item>
+        );
+      })}
+    </Accordion.Root>
+  );
+}
+
 export default function (props: FileBlockProps) {
-  const { context, content, metadata, onUpdateMetadata } = props;
+  const [search, setSearch] = useState("");
+
+  const { context, content, metadata, onUpdateMetadata, onRequestGitHubData } =
+    props;
+  const { repo, owner } = context;
 
   if (context.file !== "package.json") {
     return <div>Sorry I only work on package.json</div>;
   }
 
+  // useEffect(() => {
+  //   const getYarnLock = async () => {
+  //     try {
+  //       const res = await onRequestGitHubData(
+  //         `/repos/${owner}/${repo}/contents/yarn.lock`
+  //       );
+  //       const { content } = res;
+  //       const decoded = atob(content);
+  //       const parsedLock = lockfile.parse(decoded);
+  //     } catch (e) {
+  //       console.error(e);
+  //     }
+  //   };
+  //   getYarnLock();
+  // }, []);
+
   const parsed = JSON.parse(content);
   const { dependencies } = parsed;
 
+  const filteredDependencies = matchSorter(Object.keys(dependencies), search);
+
   return (
-    <div className={tw`p-4`}>
-      <Accordion.Root className={tw`divide-y`} type="multiple">
-        {Object.keys(dependencies).map((pkgName) => {
-          return (
-            <Accordion.Item
-              className={tw`py-2 first:pt-0`}
-              key={pkgName}
-              value={pkgName}
-            >
-              <PackageItem name={pkgName} version={dependencies[pkgName]} />
-            </Accordion.Item>
-          );
-        })}
-      </Accordion.Root>
+    <div className={tw`relative`}>
+      <div className={tw`relative sticky top-0 z-10`}>
+        <input
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+          }}
+          placeholder="Filter by package name"
+          className={tw` sticky top-0 z-10 w-full text-sm p-4 bg-gray-50 border-b focus:outline-none focus:border-blue-600 transition-all focus:bg-white`}
+        ></input>
+      </div>
+      <div className={tw`p-4`}>
+        {filteredDependencies.length > 0 && (
+          <PackageList
+            search={search}
+            dependencies={dependencies}
+            packages={filteredDependencies}
+          />
+        )}
+        {filteredDependencies.length === 0 && (
+          <p className={tw`text-sm text-gray-600`}>
+            No packages found matching "{search}"
+          </p>
+        )}
+      </div>
     </div>
   );
 }
