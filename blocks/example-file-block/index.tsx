@@ -1,27 +1,23 @@
 import { FileBlockProps } from "@githubnext/blocks";
-import { Sparklines, SparklinesLine } from "react-sparklines";
+import { Disclosure } from "@headlessui/react";
+
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import useSWR from "swr";
-import { AvatarStack, Avatar, Label as PrimerLabel } from "@primer/react";
+import { Avatar, AvatarStack, Label as PrimerLabel } from "@primer/react";
 import compareVersions from "compare-versions";
 import { matchSorter } from "match-sorter";
 import Highlighter from "react-highlight-words";
+import { Sparklines, SparklinesLine } from "react-sparklines";
+import useSWR from "swr";
 import stubYarnLock from "./stublock.json";
 
-import { tw } from "twind";
-import { styled } from "@stitches/react";
-import { ChevronDownIcon, ChevronRightIcon } from "@radix-ui/react-icons";
-import * as Accordion from "@radix-ui/react-accordion";
-import "./index.css";
+import { ChevronDownIcon, ChevronUpIcon } from "@radix-ui/react-icons";
 import axios from "axios";
+import React, { useState } from "react";
+import { tw } from "twind";
+import "./index.css";
 import { PackageDetailResponse } from "./types";
-import React, { useEffect, useState } from "react";
 
 const fetcher = (url: string) => axios.get(url).then((res) => res.data);
-
-const AccordionChevron = styled(ChevronDownIcon, {
-  "[data-state=open] &": { transform: "rotate(180deg)" },
-});
 
 const Label = (props: { children: React.ReactNode }) => {
   return (
@@ -179,18 +175,21 @@ function PackageItem({
   name,
   version,
   search,
+  open,
 }: {
   name: string;
   version: string;
   search: string;
+  open: boolean;
 }) {
   const [animationParent] = useAutoAnimate<HTMLDivElement>();
   return (
     <>
-      <Accordion.Trigger className={tw`w-full`}>
+      <Disclosure.Button className={tw`p-4 w-full border-b`}>
         <div className={tw`flex items-center justify-between w-full`}>
           <div className={tw`flex items-center space-x-1`}>
-            <AccordionChevron />
+            {/* <AccordionChevron /> */}
+            {open ? <ChevronUpIcon /> : <ChevronDownIcon />}
             <span className={tw`font-mono text-sm text-gray-900`}>
               <Highlighter
                 highlightClassName={tw`bg-yellow-100 text-yellow-900`}
@@ -201,12 +200,15 @@ function PackageItem({
           </div>
           <span className={tw`font-mono text-sm text-gray-600`}>{version}</span>
         </div>
-      </Accordion.Trigger>
-      <Accordion.Content ref={animationParent}>
-        <div className={tw`p-4 bg-gray-50 rounded border my-2`}>
+      </Disclosure.Button>
+      <Disclosure.Panel
+        className={tw`bg-gray-100 p-4 border-b`}
+        ref={animationParent}
+      >
+        <div className={tw`p-4 bg-white rounded-lg border`}>
           <PackageDetail name={name} version={version} />
         </div>
-      </Accordion.Content>
+      </Disclosure.Panel>
     </>
   );
 }
@@ -222,28 +224,23 @@ function PackageList({
 }) {
   const [animationParent] = useAutoAnimate<HTMLDivElement>();
   return (
-    <Accordion.Root
-      ref={animationParent}
-      className={tw`divide-y`}
-      type="multiple"
-    >
+    <div ref={animationParent} className={tw``}>
       {packages.map((pkgName) => {
         return (
-          <Accordion.Item
-            className={tw`py-2 first:pt-0`}
-            key={pkgName}
-            value={pkgName}
-          >
-            <PackageItem
-              search={search}
-              name={pkgName}
-              // @ts-ignore
-              version={dependencies[pkgName]}
-            />
-          </Accordion.Item>
+          <Disclosure key={pkgName}>
+            {({ open }) => (
+              <PackageItem
+                open={open}
+                search={search}
+                name={pkgName}
+                // @ts-ignore
+                version={dependencies[pkgName]}
+              />
+            )}
+          </Disclosure>
         );
       })}
-    </Accordion.Root>
+    </div>
   );
 }
 
@@ -291,7 +288,7 @@ export default function (props: FileBlockProps) {
           className={tw` sticky top-0 z-10 w-full text-sm p-4 bg-gray-50 border-b focus:outline-none focus:border-blue-600 transition-all focus:bg-white`}
         ></input>
       </div>
-      <div className={tw`p-4`}>
+      <div>
         {filteredDependencies.length > 0 && (
           <PackageList
             search={search}
@@ -300,7 +297,7 @@ export default function (props: FileBlockProps) {
           />
         )}
         {filteredDependencies.length === 0 && (
-          <p className={tw`text-sm text-gray-600`}>
+          <p className={tw`text-sm text-gray-600 p-4`}>
             No packages found matching "{search}"
           </p>
         )}
