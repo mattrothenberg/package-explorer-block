@@ -3,6 +3,9 @@ export interface PackageDetailResponse {
   collected: Collected;
   evaluation: Evaluation;
   score: Score;
+  error?: {
+    message: string;
+  };
 }
 
 export interface Collected {

@@ -1,4 +1,5 @@
 import { FileBlockProps } from "@githubnext/blocks";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import useSWR from "swr";
 import { AvatarStack, Avatar, Label as PrimerLabel } from "@primer/react";
 import compareVersions from "compare-versions";
@@ -35,17 +36,14 @@ const PackageDetail = ({
   name: string;
   version: string;
 }) => {
-  // let data = STUB_RESPONSE;
   const { data, error } = useSWR<PackageDetailResponse>(
     `https://api.npms.io/v2/package/${encodeURIComponent(name)}`,
     fetcher
   );
 
-  console.log(data, error);
-
   if (!data) {
     return (
-      <p className={tw`text-sm p-4 text-gray-600 animate-pulse`}>
+      <p className={tw`text-sm text-gray-600 animate-pulse`}>
         Loading package details...
       </p>
     );
@@ -54,7 +52,7 @@ const PackageDetail = ({
   if (error || data.error) {
     let message = error?.message ?? data.error?.message;
     return (
-      <p className={tw`text-sm p-4 text-red-600`}>
+      <p className={tw`text-sm text-red-600`}>
         {message ?? "An unexpected error occurred."}
       </p>
     );
@@ -63,7 +61,7 @@ const PackageDetail = ({
   let versionDiff = compareVersions(data.collected.metadata.version, version);
 
   return (
-    <div className={tw`p-4 grid grid-cols-12 gap-4`}>
+    <div className={tw`grid grid-cols-12 gap-4`}>
       <div className={tw`col-span-4`}>
         <Label>Latest Version</Label>
         <div className={tw`mt-2 flex items-center space-x-2`}>
@@ -108,11 +106,37 @@ const PackageDetail = ({
           </AvatarStack>
         </div>
       </div>
+      <div className={tw`col-span-12`}>
+        <Label>Links</Label>
+        <div className={tw`mt-1`}>
+          <ul className={tw`overflow-ellipsis truncate`}>
+            <li className={tw`overflow-ellipsis truncate`}>
+              <a
+                className={tw`text-sm hover:underline overflow-ellipsis truncate`}
+                target="_blank"
+                href={`https://npmjs.com/package/${name}`}
+              >
+                https://npmjs.com/package/{name}
+              </a>
+            </li>
+            <li className={tw`overflow-ellipsis truncate`}>
+              <a
+                className={tw`text-sm hover:underline overflow-ellipsis truncate`}
+                target="_blank"
+                href={data.collected.github?.homepage}
+              >
+                {data.collected.github?.homepage}
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 };
 
 function PackageItem({ name, version }: { name: string; version: string }) {
+  const [animationParent] = useAutoAnimate<HTMLDivElement>();
   return (
     <>
       <Accordion.Trigger className={tw`w-full`}>
@@ -124,8 +148,10 @@ function PackageItem({ name, version }: { name: string; version: string }) {
           <span className={tw`font-mono text-sm text-gray-600`}>{version}</span>
         </div>
       </Accordion.Trigger>
-      <Accordion.Content>
-        <PackageDetail name={name} version={version} />
+      <Accordion.Content ref={animationParent}>
+        <div className={tw`p-4`}>
+          <PackageDetail name={name} version={version} />
+        </div>
       </Accordion.Content>
     </>
   );
