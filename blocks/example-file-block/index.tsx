@@ -1,4 +1,5 @@
 import { FileBlockProps } from "@githubnext/blocks";
+import { Sparklines, SparklinesLine } from "react-sparklines";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import useSWR from "swr";
 import { AvatarStack, Avatar, Label as PrimerLabel } from "@primer/react";
@@ -70,91 +71,104 @@ const PackageDetail = ({
   );
 
   return (
-    <div className={tw`grid grid-cols-12 gap-4`}>
-      <div className={tw`col-span-12 flex`}>
-        <div className={tw`flex items-center space-x-6`}>
+    <div className={tw`flex divide-x`}>
+      <div className={tw`flex-shrink-0 w-52 space-y-4 pr-4`}>
+        <div>
+          <Label>Latest Version</Label>
+          <div className={tw`mt-2 flex items-center space-x-2`}>
+            <p className={tw`text-sm font-mono`}>
+              {data.collected.metadata.version}
+            </p>
+          </div>
+        </div>
+        {lockFileEntry && (
           <div>
-            <Label>Latest Version</Label>
+            <Label>Resolved Version</Label>
             <div className={tw`mt-2 flex items-center space-x-2`}>
-              <p className={tw`text-base font-mono`}>
-                {data.collected.metadata.version}
-              </p>
+              <p className={tw`text-sm font-mono`}>{lockFileEntry.version}</p>
+              <>
+                {versionDiff === 1 && (
+                  <PrimerLabel variant="success">Update available</PrimerLabel>
+                )}
+                {versionDiff === 0 && (
+                  <PrimerLabel variant="secondary">Latest Version</PrimerLabel>
+                )}
+              </>
             </div>
           </div>
-          {lockFileEntry && (
-            <div>
-              <Label>Resolved Version</Label>
-              <div className={tw`mt-2 flex items-center space-x-2`}>
-                <p className={tw`text-base font-mono`}>
-                  {lockFileEntry.version}
-                </p>
-                <>
-                  {versionDiff === 1 && (
-                    <PrimerLabel variant="success">
-                      Update available
-                    </PrimerLabel>
-                  )}
-                  {versionDiff === 0 && (
-                    <PrimerLabel variant="secondary">
-                      Latest Version
-                    </PrimerLabel>
-                  )}
-                </>
-              </div>
-            </div>
-          )}
+        )}
+        <div>
+          <Label>Links</Label>
+          <div className={tw`mt-1`}>
+            <ul className={tw`overflow-ellipsis truncate`}>
+              <li className={tw`overflow-ellipsis truncate`}>
+                <a
+                  className={tw`text-sm hover:underline overflow-ellipsis truncate`}
+                  target="_blank"
+                  href={`https://npmjs.com/package/${name}`}
+                >
+                  https://npmjs.com/package/{name}
+                </a>
+              </li>
+              <li className={tw`overflow-ellipsis truncate`}>
+                <a
+                  className={tw`text-sm hover:underline overflow-ellipsis truncate`}
+                  target="_blank"
+                  href={data.collected.github?.homepage}
+                >
+                  {data.collected.github?.homepage}
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
-
-      <div className={tw`col-span-3`}>
-        <Label>Downloads</Label>
-        <div className={tw`mt-2`}>
-          <p className={tw`text-base font-mono`}>
-            {data.evaluation.popularity.downloadsCount.toLocaleString()}
-          </p>
+      <div className={tw`flex-1 pl-4 grid grid-cols-12 gap-6`}>
+        <div className={tw`col-span-4`}>
+          <Label>Downloads</Label>
+          <div className={tw`mt-2`}>
+            <p className={tw`text-base font-mono`}>
+              {data.evaluation.popularity.downloadsCount.toLocaleString()}
+            </p>
+          </div>
         </div>
-      </div>
-      <div className={tw`col-span-5`}>
-        <Label>Maintainers</Label>
-        <div className={tw`mt-2 overflow-auto`}>
-          <AvatarStack>
-            {data.collected.metadata.maintainers
-              .slice(0, 6)
-              .map((maintainer) => {
-                return (
-                  <Avatar
-                    key={maintainer.username}
-                    alt={maintainer.email}
-                    src={`https://github.com/${maintainer.username}.png`}
-                  ></Avatar>
-                );
-              })}
-          </AvatarStack>
+        <div className={tw`col-span-4`}>
+          <Label>Maintainers</Label>
+          <div className={tw`mt-2 overflow-auto`}>
+            <AvatarStack>
+              {data.collected.metadata.maintainers
+                .slice(0, 6)
+                .map((maintainer) => {
+                  return (
+                    <Avatar
+                      key={maintainer.username}
+                      alt={maintainer.email}
+                      src={`https://github.com/${maintainer.username}.png`}
+                    ></Avatar>
+                  );
+                })}
+            </AvatarStack>
+          </div>
         </div>
-      </div>
-      <div className={tw`col-span-3`}>
-        <Label>Links</Label>
-        <div className={tw`mt-1`}>
-          <ul className={tw`overflow-ellipsis truncate`}>
-            <li className={tw`overflow-ellipsis truncate`}>
-              <a
-                className={tw`text-sm hover:underline overflow-ellipsis truncate`}
-                target="_blank"
-                href={`https://npmjs.com/package/${name}`}
-              >
-                https://npmjs.com/package/{name}
-              </a>
-            </li>
-            <li className={tw`overflow-ellipsis truncate`}>
-              <a
-                className={tw`text-sm hover:underline overflow-ellipsis truncate`}
-                target="_blank"
-                href={data.collected.github?.homepage}
-              >
-                {data.collected.github?.homepage}
-              </a>
-            </li>
-          </ul>
+        <div className={tw`col-span-4 row-start-2`}>
+          <Label>Downloads</Label>
+          <Sparklines
+            data={data.collected.npm.downloads.map((datum) => datum.count)}
+            limit={data.collected.npm.downloads.length}
+            height={40}
+          >
+            <SparklinesLine color="blue" />
+          </Sparklines>
+        </div>
+        <div className={tw`col-span-4 row-start-2`}>
+          <Label>Releases</Label>
+          <Sparklines
+            data={data.collected.metadata.releases.map((datum) => datum.count)}
+            limit={data.collected.metadata.releases.length}
+            height={40}
+          >
+            <SparklinesLine color="blue" />
+          </Sparklines>
         </div>
       </div>
     </div>
@@ -189,7 +203,7 @@ function PackageItem({
         </div>
       </Accordion.Trigger>
       <Accordion.Content ref={animationParent}>
-        <div className={tw`p-4`}>
+        <div className={tw`p-4 bg-gray-50 rounded border my-2`}>
           <PackageDetail name={name} version={version} />
         </div>
       </Accordion.Content>
