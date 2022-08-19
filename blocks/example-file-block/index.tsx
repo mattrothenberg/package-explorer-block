@@ -249,10 +249,18 @@ type FileContentParams = { path: string } & Pick<
   "context" | "onRequestGitHubData"
 >;
 
+type GitHubFile = {
+  content: string;
+  download_url: string;
+  html_url: string;
+  sha: string;
+  size: number;
+};
+
 function useFileContent(params: FileContentParams) {
   const { context, onRequestGitHubData, path } = params;
   const { owner, repo } = context;
-  return useSWR(
+  return useSWR<GitHubFile>(
     `/repos/${owner}/${repo}/contents/${path}`,
     onRequestGitHubData
   );
@@ -274,6 +282,8 @@ export default function (props: FileBlockProps) {
     onRequestGitHubData,
     path: "yarn.lock",
   });
+
+  const decodedFileContent = data ? atob(data.content) : "";
 
   const parsed = JSON.parse(content);
   const { dependencies } = parsed;
