@@ -244,6 +244,20 @@ function PackageList({
   );
 }
 
+type FileContentParams = { path: string } & Pick<
+  FileBlockProps,
+  "context" | "onRequestGitHubData"
+>;
+
+function useFileContent(params: FileContentParams) {
+  const { context, onRequestGitHubData, path } = params;
+  const { owner, repo } = context;
+  return useSWR(
+    `/repos/${owner}/${repo}/contents/${path}`,
+    onRequestGitHubData
+  );
+}
+
 export default function (props: FileBlockProps) {
   const [search, setSearch] = useState("");
 
@@ -255,21 +269,11 @@ export default function (props: FileBlockProps) {
     return <div>Sorry I only work on package.json</div>;
   }
 
-  // useEffect(() => {
-  //   const getYarnLock = async () => {
-  //     try {
-  //       const res = await onRequestGitHubData(
-  //         `/repos/${owner}/${repo}/contents/yarn.lock`
-  //       );
-  //       const { content } = res;
-  //       const decoded = atob(content);
-  //       const parsedLock = lockfile.parse(decoded);
-  //     } catch (e) {
-  //       console.error(e);
-  //     }
-  //   };
-  //   getYarnLock();
-  // }, []);
+  const { data, error } = useFileContent({
+    context,
+    onRequestGitHubData,
+    path: "yarn.lock",
+  });
 
   const parsed = JSON.parse(content);
   const { dependencies } = parsed;
