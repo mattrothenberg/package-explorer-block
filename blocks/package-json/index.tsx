@@ -1,4 +1,5 @@
-import { FileBlockProps } from "@githubnext/blocks";
+import { FileBlockProps, FileContext } from "@githubnext/blocks";
+
 import { Disclosure } from "@headlessui/react";
 
 import { useAutoAnimate } from "@formkit/auto-animate/react";
@@ -8,7 +9,6 @@ import { matchSorter } from "match-sorter";
 import Highlighter from "react-highlight-words";
 import { Sparklines, SparklinesLine } from "react-sparklines";
 import useSWR from "swr";
-import stubYarnLock from "./stublock.json";
 
 import { ChevronDownIcon, ChevronUpIcon } from "@radix-ui/react-icons";
 import axios from "axios";
@@ -31,13 +31,13 @@ const Label = (props: { children: React.ReactNode }) => {
 
 const PackageDetail = ({
   name,
-  version,
+  analyzed,
 }: {
   name: string;
   version: string;
+  analyzed: Record<string, { version: string }>;
 }) => {
-  // @ts-ignore
-  const lockFileEntry = stubYarnLock[`${name}@${version}`];
+  const lockFileEntry = analyzed[name];
 
   const { data, error } = useSWR<PackageDetailResponse>(
     `https://api.npms.io/v2/package/${encodeURIComponent(name)}`,
@@ -176,11 +176,13 @@ function PackageItem({
   version,
   search,
   open,
+  analyzed,
 }: {
   name: string;
   version: string;
   search: string;
   open: boolean;
+  analyzed: Record<string, { version: string }>;
 }) {
   const [animationParent] = useAutoAnimate<HTMLDivElement>();
   return (
@@ -206,7 +208,7 @@ function PackageItem({
         ref={animationParent}
       >
         <div className={tw`p-4 bg-white rounded-lg border`}>
-          <PackageDetail name={name} version={version} />
+          <PackageDetail analyzed={analyzed} name={name} version={version} />
         </div>
       </Disclosure.Panel>
     </>
@@ -217,10 +219,12 @@ function PackageList({
   dependencies,
   packages,
   search,
+  analyzed,
 }: {
   dependencies: object;
   packages: string[];
   search: string;
+  analyzed: Record<string, { version: string }>;
 }) {
   const [animationParent] = useAutoAnimate<HTMLDivElement>();
   return (
@@ -232,6 +236,7 @@ function PackageList({
               <PackageItem
                 open={open}
                 search={search}
+                analyzed={analyzed}
                 name={pkgName}
                 // @ts-ignore
                 version={dependencies[pkgName]}
@@ -244,47 +249,28 @@ function PackageList({
   );
 }
 
-type FileContentParams = { path: string } & Pick<
-  FileBlockProps,
-  "context" | "onRequestGitHubData"
->;
+function useAnalyzeDependencies(context: FileContext, content: string) {
+  const parseFunc = async () => {
+    return await axios.post("https://rothenlib.vercel.app/api/dependencies", {
+      owner: context.owner,
+      repo: context.repo,
+      manifest: content.replace(/\n/g, "").replace(/\s/g, ""),
+    });
+  };
 
-type GitHubFile = {
-  content: string;
-  download_url: string;
-  html_url: string;
-  sha: string;
-  size: number;
-};
-
-function useFileContent(params: FileContentParams) {
-  const { context, onRequestGitHubData, path } = params;
-  const { owner, repo } = context;
-  return useSWR<GitHubFile>(
-    `/repos/${owner}/${repo}/contents/${path}`,
-    onRequestGitHubData
-  );
+  return useSWR(`analzyed-deps`, parseFunc);
 }
 
 export default function (props: FileBlockProps) {
   const [search, setSearch] = useState("");
 
-  const { context, content, metadata, onUpdateMetadata, onRequestGitHubData } =
-    props;
-  const { repo, owner } = context;
+  const { context, content } = props;
 
   if (context.file !== "package.json") {
     return <div>Sorry I only work on package.json</div>;
   }
 
-  const { data, error } = useFileContent({
-    context,
-    onRequestGitHubData,
-    path: "yarn.lock",
-  });
-
-  const decodedFileContent = data ? atob(data.content) : "";
-
+  const { data: analyzed, error } = useAnalyzeDependencies(context, content);
   const parsed = JSON.parse(content);
   const { dependencies } = parsed;
 
@@ -308,6 +294,7 @@ export default function (props: FileBlockProps) {
             search={search}
             dependencies={dependencies}
             packages={filteredDependencies}
+            analyzed={analyzed?.data.data.dependencies}
           />
         )}
         {filteredDependencies.length === 0 && (
